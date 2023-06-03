@@ -1,22 +1,19 @@
-#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
-WORKDIR /app
-EXPOSE 80
-EXPOSE 443
-
+# Learn about building .NET container images:
+# https://github.com/dotnet/dotnet-docker/blob/main/samples/README.md
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
-COPY ["ProductsService/ProductsService.csproj", "ProductsService/"]
-RUN dotnet restore "ProductsService/ProductsService.csproj"
+WORKDIR /source
+
+# copy csproj and restore as distinct layers
+COPY *.csproj .
+RUN dotnet restore --use-current-runtime  
+
+# copy everything else and build app
 COPY . .
-WORKDIR "/src/ProductsService"
-RUN dotnet build "ProductsService.csproj" -c Release -o /app/build
+RUN dotnet publish --use-current-runtime --self-contained false --no-restore -o /app
 
-FROM build AS publish
-RUN dotnet publish "ProductsService.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-FROM base AS final
+# final stage/image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app .
 ENTRYPOINT ["dotnet", "ProductsService.dll"]
